@@ -17,38 +17,16 @@ internal class Program
         Console.ReadKey();
     }
 
+    #region Challenge 2
     private static int Challenge2(string[] list)
     {
-        Dictionary<string, int> numbers = new()
-        {
-            { "one" , 1 },
-            { "two" , 2 },
-            { "three", 3 },
-            { "four", 4 },
-            { "five", 5 },
-            { "six", 6 },
-            { "seven", 7 },
-            { "eight", 8 },
-            { "nine", 9 },
-            { "1", 1 },
-            { "2", 2 },
-            { "3", 3 },
-            { "4", 4 },
-            { "5", 5 },
-            { "6", 6 },
-            { "7", 7 },
-            { "8", 8 },
-            { "9", 9 },
-        };
-
-        var dic = numbers.ToDictionary(x => x.Key, x => x.Key.ToCharArray());
+        Dictionary<string, int> numbers = new() { { "one", 1 }, { "two", 2 }, { "three", 3 }, { "four", 4 }, { "five", 5 }, { "six", 6 }, { "seven", 7 }, { "eight", 8 }, { "nine", 9 }, { "1", 1 }, { "2", 2 }, { "3", 3 }, { "4", 4 }, { "5", 5 }, { "6", 6 }, { "7", 7 }, { "8", 8 }, { "9", 9 }, };
 
         int sum = 0;
         foreach (var item in list)
         {
             sum += GetNumberOfLineCh2(item, numbers);
         }
-
 
         return sum;
     }
@@ -66,8 +44,9 @@ internal class Program
 
         return int.Parse(new string(new char[] { firstIdxChar, lastIdxChar }));
     }
+    #endregion
 
-
+    #region Challenge 1
     private static int Challenge1(string[] list)
     {
         int sum = 0;
@@ -83,4 +62,5 @@ internal class Program
 
         return sum;
     }
+    #endregion
 }
