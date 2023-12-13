@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Drawing;
 using System.Security.Principal;
 using System.Text;
@@ -28,11 +29,25 @@ internal class Program
         var parsed = list.Select(x => new Row(x, 5)).ToList();
 
         long sum = parsed.AsParallel().Sum(row =>
+        //long sum = 0;
+        //foreach (var row in parsed)
         {
             if (resDic.TryGetValue(row.Line, out var val))
             {
                 return val;
             }
+
+            row.Reverse();
+
+            if (resDic.TryGetValue(row.Line, out var val1))
+            {
+                return val1;
+            }
+
+            row.Reverse();
+
+            Console.WriteLine("on it");
+
 
             return row.CountPossibilities();
         });
@@ -49,10 +64,17 @@ internal class Program
     {
         return list.Select(x => new Row(x)).ToList();
     }
+
+    public static ConcurrentDictionary<string, long> Submissions = new();
+    internal static void Submit(string v)
+    {
+        Submissions.AddOrUpdate(v, 1, (x, y) => y + 1);
+    }
 }
 
 public class Row
 {
+    StringBuilder b = new StringBuilder();
     public string Line { get; set; }
     public int[] FlexibleIdxs { get; set; }
 
@@ -65,6 +87,12 @@ public class Row
         Expected = string.Join(",", Enumerable.Repeat(split[1], copyAmount)).Split(',').Select(int.Parse).ToArray();
         Line = string.Join("?", Enumerable.Repeat(split[0], copyAmount));
 
+        CreateFlexibleIds();
+        CreateExpectedCommulatedFromBehind();
+    }
+
+    private void CreateFlexibleIds()
+    {
         List<int> flexibleIdxs = new();
 
         for (int i = 0; i < Line.Length; i++)
@@ -73,7 +101,10 @@ public class Row
                 flexibleIdxs.Add(i);
         }
         FlexibleIdxs = flexibleIdxs.ToArray();
+    }
 
+    private void CreateExpectedCommulatedFromBehind()
+    {
         ExpectedCommulatedFromBehind = new int[Expected.Length];
 
         int sum = 0;
@@ -89,10 +120,17 @@ public class Row
         if (FlexibleIdxs.Length == 0)
             return IsValid(Line) ? 1 : 0;
 
-        var allPossibilities = GetAllPossibilities(Line.Substring(0, FlexibleIdxs[0]), FlexibleIdxs);
-        long amount = allPossibilities.Count(IsValid);
-        Console.WriteLine(Line + " " + amount);
-        return amount;
+        GetAllPossibilities(Line.Substring(0, FlexibleIdxs[0]), FlexibleIdxs);
+
+        //long amount = allPossibilities.Count(IsValid);
+        if (Program.Submissions.TryGetValue(Line, out var amount))
+        {
+            Console.WriteLine(Line + " " + amount);
+            return amount;
+        }
+
+        Console.WriteLine("ERRORR");
+        return -1;
     }
 
     private bool IsValid(string str)
@@ -131,51 +169,83 @@ public class Row
         return compareIdx == Expected.Length;
     }
 
-    private IEnumerable<string> GetAllPossibilities(string str, Memory<int> flexibles)
+    private void GetAllPossibilities(string str, Memory<int> flexibles)
     {
-        int span0 = flexibles.Span[0];
+        int currIdx = flexibles.Span[0];
 
         if (flexibles.Length == 1)
         {
-            string substring = Line.Substring(span0 + 1);
-            yield return str + "." + substring;
-            yield return str + "#" + substring;
-            yield break;
+            ReadOnlyMemory<char> substring = Line.AsMemory(currIdx + 1);
+            b.Clear();
+            b.Append(str);
+            b.Append(".");
+            b.Append(substring);
+            SubmitIfValid(b.ToString());
+
+            b.Clear();
+            b.Append(str);
+            b.Append("#");
+            b.Append(substring);
+            SubmitIfValid(b.ToString());
+            return;
         }
 
-        var possibleSoFar = IsPossibleSoFar(str, Line.Length - str.Length);
+        var skipHashtags = IsPossibleSoFar(str, Line.Length - str.Length);
 
-        switch (possibleSoFar)
+        if (skipHashtags == -1)
+            return;
+        else if (skipHashtags > 0 && skipHashtags < 100)
         {
-            case Possibility.Not:
-                yield break;
-            case Possibility.Done:
-                yield return str + "." + Line.Substring(span0 + 1);
-                yield break;
-                //case Possibility.KeepGoing:
-                //    break;
+            int skipFlexibles = 1;
+            while (skipFlexibles + 1 < flexibles.Length && flexibles.Span[skipFlexibles] < currIdx + skipHashtags)
+            {
+                skipFlexibles++;
+            }
+
+            ReadOnlyMemory<char> restAfterHashtags = currIdx + skipHashtags < Line.Length ? Line.AsMemory(currIdx + skipHashtags, flexibles.Span[skipFlexibles] - currIdx - skipHashtags) : ReadOnlyMemory<char>.Empty;
+            b.Clear();
+            b.Append(str);
+            b.Append('#', skipHashtags);
+            b.Append(restAfterHashtags);
+
+            GetAllPossibilities(b.ToString(), flexibles.Slice(skipFlexibles));
+            return;
         }
 
-        string rest = Line.Substring(span0 + 1, flexibles.Span[1] - span0 - 1);
+
+        ReadOnlyMemory<char> rest = Line.AsMemory(currIdx + 1, flexibles.Span[1] - currIdx - 1);
         var nextSpan = flexibles.Slice(1);
 
-        foreach (var item in GetAllPossibilities(str + "." + rest, nextSpan))
-        {
-            yield return item;
-        }
+        b.Clear();
+        b.Append(str);
+        b.Append(".");
+        b.Append(rest);
 
+        GetAllPossibilities(b.ToString(), nextSpan);
 
-        foreach (var item in GetAllPossibilities(str + "#" + rest, nextSpan))
-        {
-            yield return item;
-        }
+        b.Clear();
+        b.Append(str);
+        b.Append("#");
+        b.Append(rest);
+        GetAllPossibilities(b.ToString(), nextSpan);
     }
 
-    private Possibility IsPossibleSoFar(string str, int remainingChars)
+    private void SubmitIfValid(string v)
+    {
+        if (IsValid(v))
+            Program.Submit(Line);
+    }
+
+    //-1 not
+    //0 keep going
+    //1-10 next #
+    //100-110 next .
+    private int IsPossibleSoFar(string str, int remainingChars)
     {
         int compareIdx = 0;
         int hashtagCount = 0;
-        for (int i = 0; i < str.Length; i++)
+        int i = 0;
+        for (i = 0; i < str.Length; i++)
         {
             if (str[i] == '#')
             {
@@ -187,7 +257,7 @@ public class Row
                 if (hashtagCount != 0)
                 {
                     if (compareIdx >= Expected.Length || Expected[compareIdx] != hashtagCount)
-                        return Possibility.Not;
+                        return -1;
 
                     hashtagCount = 0;
                     compareIdx++;
@@ -198,22 +268,45 @@ public class Row
         if (hashtagCount != 0)
         {
             if (compareIdx >= Expected.Length)
-                return Possibility.Not;
+                return -1;
+
+            if (hashtagCount < Expected[compareIdx])
+            {
+                var nextHashtags = Expected[compareIdx] - hashtagCount;
+
+                if (i + nextHashtags > Line.Length)
+                    return -1;
+
+                for (int j = 0; j < nextHashtags; j++)
+                {
+                    if (Line[i + j] == '.')
+                        return -1;
+                }
+
+                return nextHashtags;
+            }
 
             hashtagCount = 0;
             compareIdx++;
         }
 
-
         if (compareIdx > Expected.Length)
-            return Possibility.Not;
+            return -1;
 
         if (compareIdx < ExpectedCommulatedFromBehind.Length && remainingChars < (ExpectedCommulatedFromBehind[compareIdx] + Expected.Length - compareIdx - 1))
-            return Possibility.Not;
+            return -1;
 
 
-        return Possibility.KeepGoing;
+        return 0;
+    }
+
+    internal void Reverse()
+    {
+        Line = new string(Line.Reverse().ToArray());
+        CreateFlexibleIds();
+        Expected = Expected.Reverse().ToArray();
+        CreateExpectedCommulatedFromBehind();
     }
 }
 
-public enum Possibility : byte { Not, Done, KeepGoing };
+//public enum Possibility : int { Not, Done, KeepGoing, NextHashtag };
