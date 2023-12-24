@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+﻿using Day12;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Drawing;
 using System.Security.Principal;
@@ -16,7 +17,8 @@ internal class Program
         //var parsed = Parse(list);
 
         //var sum = Challenge1(parsed);
-        var sumCh2 = Challenge2(list, resAlready);
+        //var sumCh2 = Challenge2(list, resAlready);
+        var sumCh2 = new Part2(list).Main();
 
         //Console.WriteLine("Ch1: " + sum);
         Console.WriteLine("Ch2: " + sumCh2);
