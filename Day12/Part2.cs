@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -8,7 +9,41 @@ using System.Threading.Tasks;
 namespace Day12
 {
     public enum CharType : byte { Dot, Hash, QuestionMark }
-    public record Line(string LineInput, int[] Streaks, CharType[] Chars);
+    public class Line
+    {
+        public Line(string lineInput, int[] streaks, CharType[] chars)
+        {
+            LineInput = lineInput;
+            Streaks = streaks;
+            Chars = chars;
+            InitStreakMinCharactersNeeded(Streaks);
+        }
+
+        private void InitStreakMinCharactersNeeded(int[] streaks)
+        {
+            StreakMinCharactersNeeded = new();
+            for (int i = 0; i < streaks.Length; i++)
+            {
+                StreakMinCharactersNeeded.Add(streaks.Length - i, GetStreakMinCharactersNeeded(Streaks.AsSpan().Slice(i)));
+            }
+        }
+
+        private int GetStreakMinCharactersNeeded(Span<int> streaks)
+        {
+            int sum = 0;
+            for (int i = 0; i < streaks.Length; i++)
+            {
+                sum += streaks[i];
+            }
+            return sum + streaks.Length - 1;
+        }
+
+        public string LineInput { get; }
+        public int[] Streaks { get; }
+        public CharType[] Chars { get; }
+        public Dictionary<int, int> StreakMinCharactersNeeded { get; set; }
+    }
+
     public class Part2
     {
         public List<Line> Lines { get; set; }
@@ -44,33 +79,33 @@ namespace Day12
         int amountDone = 0;
         public long Main()
         {
-            //long localSum = 0;
-            //foreach (var line in Lines)
-            Parallel.ForEach(Lines, line =>
+            long localSum = 0;
+            foreach (var line in Lines)
+            //Parallel.ForEach(Lines, line =>
             {
-            var stopWatch = new Stopwatch();
+                var stopWatch = new Stopwatch();
                 stopWatch.Start();
-                CountMe(line.Streaks, 0, line.Chars.AsSpan());
+                CountMe(line, line.Streaks, 0, line.Chars.AsSpan());
                 stopWatch.Stop();
 
 
-                //localSum += Sum;
+                localSum += Sum;
                 amountDone++;
 
                 Console.WriteLine("Nr: " + amountDone);
                 Console.WriteLine(line.LineInput);
                 Console.WriteLine(stopWatch.ElapsedMilliseconds);
-                //Console.WriteLine("Sum " + Sum);
+                Console.WriteLine("Sum " + Sum);
                 Console.WriteLine();
 
-                //Sum = 0;
-            });
+                Sum = 0;
+            }
 
-            //Console.WriteLine("Result " + localSum);
+            Console.WriteLine("Result " + localSum);
             return Sum;
         }
 
-        private void CountMe(Span<int> streaks, int inputCurrIdx, Span<CharType> span)
+        private void CountMe(Line line, Span<int> streaks, int inputCurrIdx, Span<CharType> span)
         {
             var currIdx = inputCurrIdx;
             if (streaks.Length == 0)
@@ -92,7 +127,7 @@ namespace Day12
             if (currIdx >= span.Length)
                 return;
 
-            if (MinCharactersNeededLeft(streaks) + currIdx > span.Length)
+            if (line.StreakMinCharactersNeeded[streaks.Length] + currIdx > span.Length)
             {
                 return;
             }
@@ -117,7 +152,7 @@ namespace Day12
                 if (Any(span, inputCurrIdx, Math.Min(span.Length, nextIdxWithHashOrQuest), CharType.Hash))
                     return;
 
-                CountMe(streaks, nextIdxWithHashOrQuest, span);
+                CountMe(line, streaks, nextIdxWithHashOrQuest, span);
                 return;
             }
 
@@ -139,7 +174,7 @@ namespace Day12
                     continue;
                 }
 
-                CountMe(streaksWithoutStreak0, currIdx + streaks0 + i + 1, span);
+                CountMe(line, streaksWithoutStreak0, currIdx + streaks0 + i + 1, span);
 
                 if (span[currIdx + i] == CharType.Hash)
                     break;
@@ -149,7 +184,7 @@ namespace Day12
             if (Any(span, inputCurrIdx, Math.Min(span.Length, nextIdxWithHashOrQuest), CharType.Hash))
                 return;
 
-            CountMe(streaks, nextIdxWithHashOrQuest, span);
+            CountMe(line, streaks, nextIdxWithHashOrQuest, span);
         }
 
         private bool Any(Span<CharType> span, int startIdx_Incl, int endIdx_Excl, CharType hash)
@@ -162,15 +197,6 @@ namespace Day12
             return false;
         }
 
-        public int MinCharactersNeededLeft(Span<int> streaks)
-        {
-            int sum = 0;
-            for (int i = 0; i < streaks.Length; i++)
-            {
-                sum += streaks[i];
-            }
-            return sum + streaks.Length - 1;
-        }
 
         bool None(int startIdx, Span<CharType> span, CharType chType)
         {
