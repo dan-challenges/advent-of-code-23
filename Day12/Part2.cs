@@ -41,38 +41,42 @@ namespace Day12
         }
 
         long Sum = 0;
+        int amountDone = 0;
         public long Main()
         {
-            long localSum = 0;
-            var stopWatch = new Stopwatch();
-            foreach (var line in Lines)
+            //long localSum = 0;
+            //foreach (var line in Lines)
+            Parallel.ForEach(Lines, line =>
             {
+            var stopWatch = new Stopwatch();
                 stopWatch.Start();
-                CountMe(line.Streaks, 0, line.Chars.AsSpan(), new());
+                CountMe(line.Streaks, 0, line.Chars.AsSpan());
                 stopWatch.Stop();
 
 
-                localSum += Sum;
+                //localSum += Sum;
+                amountDone++;
 
+                Console.WriteLine("Nr: " + amountDone);
                 Console.WriteLine(line.LineInput);
                 Console.WriteLine(stopWatch.ElapsedMilliseconds);
-                Console.WriteLine("Sum " + Sum);
+                //Console.WriteLine("Sum " + Sum);
                 Console.WriteLine();
-                Sum = 0;
-            }
 
-            Console.WriteLine("Result " + localSum);
+                //Sum = 0;
+            });
+
+            //Console.WriteLine("Result " + localSum);
             return Sum;
         }
 
-        private void CountMe(Span<int> streaks, int inputCurrIdx, Span<CharType> span, List<bool> soFar)
+        private void CountMe(Span<int> streaks, int inputCurrIdx, Span<CharType> span)
         {
             var currIdx = inputCurrIdx;
             if (streaks.Length == 0)
             {
                 if (None(currIdx, span, CharType.Hash))
                 {
-                    Console.WriteLine(string.Join(" ", soFar.Select(x => x ? "#" : ".")));
                     Sum++;
                     return;
                 }
@@ -82,7 +86,6 @@ namespace Day12
 
             while (currIdx < span.Length && span[currIdx] == CharType.Dot)
             {
-                soFar.Add(false);
                 currIdx++;
             }
 
@@ -114,12 +117,7 @@ namespace Day12
                 if (Any(span, inputCurrIdx, Math.Min(span.Length, nextIdxWithHashOrQuest), CharType.Hash))
                     return;
 
-                for (int i = currIdx; i < nextIdxWithHashOrQuest; i++)
-                {
-                    soFar.Add(false);
-                }
-
-                CountMe(streaks, nextIdxWithHashOrQuest, span, soFar.ToList());
+                CountMe(streaks, nextIdxWithHashOrQuest, span);
                 return;
             }
 
@@ -133,9 +131,6 @@ namespace Day12
                 if (currIdx + streaks0 + i > span.Length)
                     throw new Exception("Shouldnt happen");
 
-                //if(Any(span, inputCurrIdx + streaks0 + i, inputCurrIdx + amountOfHashAndQuest, CharType.Hash))
-                //    continue;
-
                 if (currIdx + streaks0 + i < span.Length && span[currIdx + streaks0 + i] == CharType.Hash)
                 {
                     if (span[currIdx + i] == CharType.Hash)
@@ -144,33 +139,17 @@ namespace Day12
                     continue;
                 }
 
-                var localSoFar = soFar.ToList();
-                for (int j = 0; j < i; j++)
-                {
-                    localSoFar.Add(false);
-                }
-                for (int j = 0; j < streaks0; j++)
-                {
-                    localSoFar.Add(true);
-                }
-
-                localSoFar.Add(false);
-
-                CountMe(streaksWithoutStreak0, currIdx + streaks0 + i + 1, span, localSoFar.ToList());
+                CountMe(streaksWithoutStreak0, currIdx + streaks0 + i + 1, span);
 
                 if (span[currIdx + i] == CharType.Hash)
                     break;
             }
 
-            for (int i = currIdx; i < nextIdxWithHashOrQuest; i++)
-            {
-                soFar.Add(false);
-            }
 
             if (Any(span, inputCurrIdx, Math.Min(span.Length, nextIdxWithHashOrQuest), CharType.Hash))
                 return;
 
-            CountMe(streaks, nextIdxWithHashOrQuest, span, soFar.ToList());
+            CountMe(streaks, nextIdxWithHashOrQuest, span);
         }
 
         private bool Any(Span<CharType> span, int startIdx_Incl, int endIdx_Excl, CharType hash)
